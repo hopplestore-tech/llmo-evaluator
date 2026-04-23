@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLMO / AIO コンテンツ評価</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; background: #f9f9f7; color: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .container { width: 100%; max-width: 680px; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+  .sub { font-size: 14px; color: #666; margin-bottom: 1.5rem; }
+  .url-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+  input:focus { border-color: #999; }
+  button { padding: 10px 20px; background: #1a1a1a; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error { background: #fff0f0; border: 1px solid #fcc; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #c00; margin-bottom: 1rem; }
+  .loading { text-align: center; padding: 2rem; color: #666; font-size: 14px; }
+  .result { background: white; border: 1px solid #eee; border-radius: 12px; padding: 1.5rem; }
+  .top { display: flex; align-items: center; gap: 1.5rem; background: #f5f5f3; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem; }
+  .score-num { font-size: 36px; font-weight: 500; line-height: 1; }
+  .score-sub { font-size: 12px; color: #888; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 99px; margin-bottom: 6px; }
+  .tag-good { background: #e1f5ee; color: #0f6e56; }
+  .tag-warn { background: #faeeda; color: #854f0b; }
+  .tag-bad { background: #fcebeb; color: #a32d2d; }
+  .verdict { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .summary { font-size: 13px; color: #666; line-height: 1.5; }
+  .axes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.25rem; }
+  .axis { background: white; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; }
+  .axis-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .axis-name { font-size: 12px; font-weight: 500; color: #666; }
+  .axis-score { font-size: 13px; font-weight: 500; }
+  .bar-bg { height: 3px; background: #eee; border-radius: 2px; margin-bottom: 7px; }
+  .bar-fill { height: 3px; border-radius: 2px; }
+  .axis-comment { font-size: 12px; color: #666; line-height: 1.5; }
+  .imp-title { font-size: 13px; font-weight: 500; color: #666; margin-bottom: 8px; }
+  .imp-item { display: flex; gap: 8px; padding: 8px 12px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: 13px; line-height: 1.5; }
+  .url-chip { font-size: 12px; color: #888; background: #f5f5f3; padding: 5px 10px; border-radius: 6px; margin-bottom: 1rem; word-break: break-all; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>LLMO / AIO コンテンツ評価</h1>
+  <p class="sub">URLを入力するとAIがページを取得・分析し、AIに参照されやすいかをスコアリングします</p>
+  <div class="url-row">
+    <input type="text" id="urlInput" placeholder="https://example.com/article" />
+    <button id="btn" onclick="evaluate()">評価する</button>
+  </div>
+  <div id="error" class="error hidden"></div>
+  <div id="loading" class="loading hidden">分析中...</div>
+  <div id="result" class="result hidden"></div>
+</div>
+
+<script>
+function sc(s){ return s>=70?'#1d9e75':s>=45?'#ba7517':'#a32d2d'; }
+
+async function evaluate() {
+  const url = document.getElementById('urlInput').value.trim();
+  const err = document.getElementById('error');
+  if (!url.startsWith('http')) {
+    err.textContent = 'https:// から始まるURLを入力してください';
+    err.classList.remove('hidden');
+    return;
+  }
+  err.classList.add('hidden');
+  document.getElementById('result').classList.add('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('btn').disabled = true;
+
+  try {
+    const res = await fetch('/api/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    render(data, url);
+  } catch(e) {
+    err.textContent = 'エラー: ' + e.message;
+    err.classList.remove('hidden');
+  }
+
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('btn').disabled = false;
+}
+
+function render(d, url) {
+  const axes = [
+    { key:'structure', label:'構造・明瞭性' },
+    { key:'credibility', label:'信頼性・引用' },
+    { key:'depth', label:'情報の網羅性' },
+    { key:'citability', label:'引用されやすさ' },
+    { key:'eeat', label:'E-E-A-T対応' }
+  ];
+  const t = d.total_score;
+  const tagCls = t>=70?'tag-good':t>=45?'tag-warn':'tag-bad';
+  const tagTxt = t>=70?'AI参照に適している':t>=45?'部分的に改善が必要':'要改善';
+
+  document.getElementById('result').innerHTML = `
+    <div class="url-chip">${url}</div>
+    <div class="top">
+      <div style="text-align:center;flex-shrink:0;">
+        <div class="score-num" style="color:${sc(t)}">${t}</div>
+        <div class="score-sub">/ 100</div>
+      </div>
+      <div>
+        <div class="tag ${tagCls}">${tagTxt}</div>
+        <div class="verdict">${d.verdict}</div>
+        <div class="summary">${d.summary}</div>
+      </div>
+    </div>
+    <div class="axes">${axes.map(ax => {
+      const s = d.axes[ax.key];
+      return `<div class="axis">
+        <div class="axis-top"><span class="axis-name">${ax.label}</span><span class="axis-score" style="color:${sc(s.score)}">${s.score}/100</span></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${s.score}%;background:${sc(s.score)}"></div></div>
+        <div class="axis-comment">${s.comment}</div>
+      </div>`;
+    }).join('')}</div>
+    <div class="imp-title">改善ポイント</div>
+    ${d.improvements.map(i => `<div class="imp-item"><span>→</span><span>${i}</span></div>`).join('')}
+  `;
+  document.getElementById('result').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
