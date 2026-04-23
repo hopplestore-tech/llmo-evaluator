@@ -47,7 +47,7 @@
   <p class="sub">URLを入力するとAIがページを取得・分析し、AIに参照されやすいかをスコアリングします</p>
   <div class="url-row">
     <input type="text" id="urlInput" placeholder="https://example.com/article" />
-    <button id="btn" onclick="evaluate()">評価する</button>
+    <button id="btn" onclick="runEval()">評価する</button>
   </div>
   <div id="error" class="error hidden"></div>
   <div id="loading" class="loading hidden">分析中...</div>
@@ -57,7 +57,7 @@
 <script>
 function sc(s){ return s>=70?'#1d9e75':s>=45?'#ba7517':'#a32d2d'; }
 
-async function evaluate() {
+async function runEval() {
   const url = document.getElementById('urlInput').value.trim();
   const err = document.getElementById('error');
   if (!url.startsWith('http')) {
@@ -71,7 +71,7 @@ async function evaluate() {
   document.getElementById('btn').disabled = true;
 
   try {
-    const res = await fetch('/api/evaluate', {
+    const res = await fetch('/api/runEval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
