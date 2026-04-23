@@ -17,7 +17,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `次のURLの記事を取得し、タイトル・見出し・本文の主要テキストを抽出して返してください。URL: ${url}` }]
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         system: `あなたはLLMO・AIO専門家です。WebページをAI参照されやすさの観点で評価し、JSONのみ返してください。前後の説明・マークダウン記号は不要です。
 形式: {"total_score":整数,"verdict":"15字以内","summary":"60字以内","axes":{"structure":{"score":整数,"comment":"40字以内"},"credibility":{"score":整数,"comment":"40字以内"},"depth":{"score":整数,"comment":"40字以内"},"citability":{"score":整数,"comment":"40字以内"},"eeat":{"score":整数,"comment":"40字以内"}},"improvements":["提案1","提案2","提案3"]}`,
